@@ -3,7 +3,7 @@ Lampa.Platform.tv();
 (function () {
     'use strict';
 
-    // Стили: адаптивная сетка кнопок
+    // Стили для адаптивного отображения кнопок
     const style = document.createElement('style');
     style.innerHTML = `
         .full-start-new__buttons {
@@ -41,7 +41,6 @@ Lampa.Platform.tv();
 
                             const allButtons = fullContainer.find('.buttons--container .full-start__button')
                                 .add(targetContainer.find('.full-start__button'));
-                            console.log('[SorterPlugin] Всего кнопок:', allButtons.length);
 
                             function hasClass(el, name) {
                                 return $(el).attr('class').toLowerCase().includes(name);
@@ -69,12 +68,10 @@ Lampa.Platform.tv();
                             targetContainer.empty();
                             newOrder.forEach(btn => targetContainer.append(btn));
 
-                            // Удаляем оригинальные трейлеры Лампы (строгое сравнение по названию)
-                            fullContainer.find('.full-start__button').filter(function () {
-                                return $(this).text().trim().toLowerCase() === 'трейлер';
-                            }).remove();
+                            // Удаляем встроенные трейлеры от Лампы по классу
+                            fullContainer.find('.view--trailer').remove();
 
-                            console.log('[SorterPlugin] Удалены встроенные трейлеры Лампы');
+                            console.log('[SorterPlugin] Удалена оригинальная кнопка трейлера');
 
                             Lampa.Controller.toggle("full_start");
                             console.log('[SorterPlugin] Новый порядок кнопок применён');
