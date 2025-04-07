@@ -1,57 +1,97 @@
-(function() {
-    "use strict";
-    
-    // Инициализация для телевизионных платформ
-    Lampa.Platform.tv();
-    
-    // Инициализация модуля TMDB, если он ещё не создан
-    Lampa.TMDB = Lampa.TMDB || {};
-    
-    // Функция для формирования URL для запросов к TMDB API через прокси-сервер
-    Lampa.TMDB.api = function(query) {
-        var formattedQuery = Lampa.Utils.addUrlComponent(query);
-        if (Lampa.Storage.get("tmdb_proxy")) {
-            return "http://212.113.103.137:9118/proxy" + formattedQuery;
+Lampa.Platform.tv();
+
+(function () {
+    'use strict';
+
+    // Стили: адаптивная сетка кнопок
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .full-start-new__buttons {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            justify-content: flex-start;
         }
-        return formattedQuery;
-    };
-    
-    // Функция для формирования URL для получения изображений TMDB через прокси-сервер
-    Lampa.TMDB.image = function(path) {
-        var url = Lampa.Utils.addUrlComponent(path);
-        if (Lampa.Storage.get("tmdb_proxy")) {
-            return "http://212.113.103.137:9118/proxyimg/" + Lampa.Utils.addUrlComponent(url);
+
+        .full-start-new__buttons .full-start__button {
+            max-width: 180px;
+            flex: 1 1 auto;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        return url;
-    };
-    
-    // Функция обновления параметра "source" – если в DOM есть элементы с классом "proxy",
-    // обновляется значение "source" в хранилище (это необходимо для корректного формирования URL постеров)
-    function updateSource() {
-        var proxyElements = document.getElementsByClassName("proxy");
-        var source = Lampa.Storage.get("source");
-        if (proxyElements.length > 0) {
-            Lampa.Storage.set("source", source);
+    `;
+    document.head.appendChild(style);
+
+    console.log('[SorterPlugin] плагин загружен');
+
+    function startPlugin() {
+        try {
+            if (Lampa.Storage.get('full_btn_priority') !== undefined) {
+                Lampa.Storage.set('full_btn_priority', '{}');
+            }
+
+            Lampa.Listener.follow('full', function (e) {
+                if (e.type === 'complite') {
+                    setTimeout(function () {
+                        try {
+                            const fullContainer = e.object.activity.render();
+                            const targetContainer = fullContainer.find('.full-start-new__buttons');
+                            console.log('[SorterPlugin] Контейнер найден:', targetContainer);
+
+                            const allButtons = fullContainer.find('.buttons--container .full-start__button')
+                                .add(targetContainer.find('.full-start__button'));
+                            console.log('[SorterPlugin] Всего кнопок:', allButtons.length);
+
+                            function hasClass(el, name) {
+                                return $(el).attr('class').toLowerCase().includes(name);
+                            }
+
+                            const cinema = allButtons.filter(function () { return hasClass(this, 'cinema'); });
+                            const online = allButtons.filter(function () { return hasClass(this, 'online'); });
+                            const torrent = allButtons.filter(function () { return hasClass(this, 'torrent'); });
+                            const trailer = allButtons.filter(function () { return hasClass(this, 'trailer'); });
+                            const rest = allButtons.not(cinema).not(online).not(torrent).not(trailer);
+
+                            cinema.detach();
+                            online.detach();
+                            torrent.detach();
+                            trailer.detach();
+                            rest.detach();
+
+                            const newOrder = []
+                                .concat(cinema.get())
+                                .concat(online.get())
+                                .concat(torrent.get())
+                                .concat(trailer.get())
+                                .concat(rest.get());
+
+                            targetContainer.empty();
+                            newOrder.forEach(btn => targetContainer.append(btn));
+
+                            // Удаляем оригинальные трейлеры Лампы (строгое сравнение по названию)
+                            fullContainer.find('.full-start__button').filter(function () {
+                                return $(this).text().trim().toLowerCase() === 'трейлер';
+                            }).remove();
+
+                            console.log('[SorterPlugin] Удалены встроенные трейлеры Лампы');
+
+                            Lampa.Controller.toggle("full_start");
+                            console.log('[SorterPlugin] Новый порядок кнопок применён');
+                        } catch (err) {
+                            console.error('[SorterPlugin] Ошибка сортировки:', err);
+                        }
+                    }, 100);
+                }
+            });
+
+            if (typeof module !== 'undefined' && module.exports) {
+                module.exports = {};
+            }
+        } catch (err) {
+            console.error('[SorterPlugin] Ошибка инициализации плагина:', err);
         }
     }
-    
-    // Создаём MutationObserver для отслеживания изменений в DOM
-    var observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.type === "childList") {
-                updateSource();
-            }
-        });
-    });
-    
-    observer.observe(document.body, { childList: true, subtree: true });
-    
-    // Отключаем DMCA-защиту: если в настройках приложения включена опция dcma, периодически сбрасываем её в false
-    setInterval(function() {
-        if (window.lampa_settings && window.lampa_settings.dcma) {
-            window.lampa_settings.dcma = false;
-        }
-    }, 100);
-    
-    // Здесь можно добавить дополнительные переопределения и настройки, если это необходимо
+
+    startPlugin();
 })();
